@@ -604,9 +604,9 @@ status_t HWComposer::prepare() {
                     //ALOGD("prepare: %d, type=%d, handle=%p",
                     //        i, l.compositionType, l.handle);
 
-                    if (l.flags & HWC_SKIP_LAYER) {
+                    /*if (l.flags & HWC_SKIP_LAYER) {
                         l.compositionType = HWC_FRAMEBUFFER;
-                    }
+                    }*/
                     if (l.compositionType == HWC_FRAMEBUFFER) {
                         disp.hasFbComp = true;
                     }
@@ -650,6 +650,7 @@ int HWComposer::getAndResetReleaseFenceFd(int32_t id) {
 
 status_t HWComposer::commit() {
     int err = NO_ERROR;
+
     if (mHwc) {
         if (!hwcHasApiVersion(mHwc, HWC_DEVICE_API_VERSION_1_1)) {
             // On version 1.0, the OpenGL ES target surface is communicated
@@ -753,6 +754,35 @@ void HWComposer::fbDump(String8& result) {
         mFbDev->dump(mFbDev, buffer, SIZE);
         result.append(buffer);
     }
+}
+
+int  HWComposer::setParameter(uint32_t cmd,uint32_t value)
+{
+    if (mHwc) 
+    {
+    	int err;
+    	if( (cmd == HWC_LAYER_SETTOP) || (cmd == HWC_LAYER_SETBOTTOM) )
+		{
+			err = mHwc->setlayerorder(mHwc, mNumDisplays, mLists, cmd);
+		}else
+		{
+			err = mHwc->setparameter(mHwc, cmd,value);
+		}
+        //int err = mHwc->setparameter(mHwc, cmd,value);
+        
+        return (status_t)err;
+    }
+    return NO_ERROR;
+}
+
+uint32_t HWComposer::getParameter(uint32_t cmd)
+{
+    if (mHwc) 
+    {
+        return mHwc->getparameter(mHwc, cmd);
+    }
+    
+    return NO_ERROR;
 }
 
 /*
@@ -865,6 +895,9 @@ public:
         }
 
         getLayer()->acquireFenceFd = -1;
+    }
+	virtual void setFormat(uint32_t format) {
+    	getLayer()->format = format;
     }
 };
 

@@ -26,6 +26,7 @@
 
 #include <ui/DisplayInfo.h>
 #include <ui/PixelFormat.h>
+#include <ui/FramebufferNativeWindow.h>
 
 #include <gui/SurfaceTextureClient.h>
 
@@ -92,6 +93,8 @@ DisplayDevice::DisplayDevice(
       mOrientation()
 {
     init(config);
+
+	mDisplayDispatcher = new DisplayDispatcher(mFlinger);
 }
 
 DisplayDevice::~DisplayDevice() {
@@ -204,7 +207,7 @@ void DisplayDevice::flip(const Region& dirty) const
     } 
 #endif
 
-    mPageFlipCount++;
+    mPageFlipCount++;   
 }
 
 void DisplayDevice::swapBuffers(HWComposer& hwc) const {
@@ -213,6 +216,7 @@ void DisplayDevice::swapBuffers(HWComposer& hwc) const {
         // no HWC, we call eglSwapBuffers()
         success = eglSwapBuffers(mDisplay, mSurface);
     } else {
+    	#if 1	// don't support the virtual dispalys at present
         // We have a valid HWC, but not all displays can use it, in particular
         // the virtual displays are on their own.
         // TODO: HWC 1.2 will allow virtual displays
@@ -229,8 +233,10 @@ void DisplayDevice::swapBuffers(HWComposer& hwc) const {
             // HWC doesn't have the framebuffer target, we don't call
             // eglSwapBuffers(), since this is handled by HWComposer::commit().
         }
+		#endif
+		//hwc.commit();
     }
-
+	
     if (!success) {
         EGLint error = eglGetError();
         if (error == EGL_CONTEXT_LOST ||
@@ -242,6 +248,11 @@ void DisplayDevice::swapBuffers(HWComposer& hwc) const {
 }
 
 void DisplayDevice::onSwapBuffersCompleted(HWComposer& hwc) const {
+	if (mDisplayDispatcher != NULL) 
+    {
+        mDisplayDispatcher->startSwapBuffer( 0 );
+    }
+	
     if (hwc.initCheck() == NO_ERROR) {
         if (hwc.supportsFramebufferTarget()) {
             int fd = hwc.getAndResetReleaseFenceFd(mType);
@@ -368,6 +379,23 @@ void DisplayDevice::setProjection(int orientation,
     mOrientation = orientation;
     mViewport = viewport;
     mFrame = frame;
+	char property[PROPERTY_VALUE_MAX];
+	if (property_get("ro.sf.hwrotation", property, NULL) > 0) {
+		//displayOrientation
+		switch (atoi(property)) {
+		case 270:
+			mOrientation = (orientation + 3) % 4;
+			if( (mViewport.right < 0) && (mViewport.bottom < 0) && (mFrame.right < 0) && (mFrame.bottom < 0))
+			{
+				mViewport.right = mDisplayHeight;
+				mViewport.bottom = mDisplayWidth;
+				mFrame.right = mDisplayHeight;
+				mFrame.bottom = mDisplayWidth;
+			}
+			break;
+		}
+	}
+
     updateGeometryTransform();
 }
 
@@ -455,3 +483,24 @@ void DisplayDevice::dump(String8& result, char* buffer, size_t SIZE) const {
         result.append(fbtargetDump);
     }
 }
+
+int DisplayDevice::setDispProp(int cmd,int param0,int param1,int param2) const
+{
+    if (mDisplayDispatcher != NULL) 
+    {
+        return mDisplayDispatcher->setDispProp(cmd,param0,param1,param2);
+    }
+
+    return  0;
+}
+
+int DisplayDevice::getDispProp(int cmd,int param0,int param1) const 
+{
+    if (mDisplayDispatcher != NULL) 
+    {
+        return mDisplayDispatcher->getDispProp(cmd,param0,param1);
+    }
+    
+    return  0;
+}
+

@@ -35,9 +35,12 @@ sp<GraphicBuffer> GraphicBufferAlloc::createGraphicBuffer(uint32_t w, uint32_t h
         PixelFormat format, uint32_t usage, status_t* error) {
     sp<GraphicBuffer> graphicBuffer(new GraphicBuffer(w, h, format, usage));
     status_t err = graphicBuffer->initCheck();
+	ALOGI("GraphicBufferAlloc::createGraphicBuffer ");
     *error = err;
     if (err != 0 || graphicBuffer->handle == 0) {
+		ALOGI("GraphicBufferAlloc::createGraphicBuffer00 ");
         if (err == NO_MEMORY) {
+			ALOGI("GraphicBufferAlloc::createGraphicBuffer11 ");
             GraphicBuffer::dumpAllocationsToSystemLog();
         }
         ALOGE("GraphicBufferAlloc::createGraphicBuffer(w=%d, h=%d) "

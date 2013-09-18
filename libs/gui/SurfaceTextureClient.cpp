@@ -31,6 +31,7 @@
 #include <gui/SurfaceTextureClient.h>
 
 #include <private/gui/ComposerService.h>
+#include <hardware/hwcomposer.h>
 
 namespace android {
 
@@ -415,6 +416,13 @@ int SurfaceTextureClient::perform(int operation, va_list args)
     case NATIVE_WINDOW_API_DISCONNECT:
         res = dispatchDisconnect(args);
         break;
+	case NATIVE_WINDOW_SETPARAMETER:
+        res = dispatchSetParameter(args);
+        break;
+
+    case NATIVE_WINDOW_GETPARAMETER:
+        res = dispatchGetParameter(args);
+        break;
     default:
         res = NAME_NOT_FOUND;
         break;
@@ -448,6 +456,7 @@ int SurfaceTextureClient::dispatchSetBufferCount(va_list args) {
 }
 
 int SurfaceTextureClient::dispatchSetBuffersGeometry(va_list args) {
+	layerinitpara_t  layer_info;
     int w = va_arg(args, int);
     int h = va_arg(args, int);
     int f = va_arg(args, int);
@@ -455,7 +464,16 @@ int SurfaceTextureClient::dispatchSetBuffersGeometry(va_list args) {
     if (err != 0) {
         return err;
     }
-    return setBuffersFormat(f);
+    err = setBuffersFormat(f);
+    if (err != 0) 
+    {
+        return err;
+    }
+    
+    layer_info.w 			= w;
+    layer_info.h 			= h;
+    layer_info.format 		= f;
+    return setParameter(HWC_LAYER_SETINITPARA,(uint32_t)&layer_info);
 }
 
 int SurfaceTextureClient::dispatchSetBuffersDimensions(va_list args) {
@@ -564,6 +582,8 @@ int SurfaceTextureClient::setCrop(Rect const* rect)
 
     Mutex::Autolock lock(mMutex);
     mCrop = realRect;
+
+	status_t err = mSurfaceTexture->setCrop(*rect);
     return NO_ERROR;
 }
 
@@ -598,6 +618,8 @@ int SurfaceTextureClient::setBuffersDimensions(int w, int h)
     Mutex::Autolock lock(mMutex);
     mReqWidth = w;
     mReqHeight = h;
+	status_t err = mSurfaceTexture->setCrop(Rect(w, h));
+	
     return NO_ERROR;
 }
 
@@ -647,6 +669,7 @@ int SurfaceTextureClient::setScalingMode(int mode)
 
     Mutex::Autolock lock(mMutex);
     mScalingMode = mode;
+	status_t err = mSurfaceTexture->setCurrentScalingMode(mode);
     return NO_ERROR;
 }
 
@@ -656,6 +679,7 @@ int SurfaceTextureClient::setBuffersTransform(int transform)
     ALOGV("SurfaceTextureClient::setBuffersTransform");
     Mutex::Autolock lock(mMutex);
     mTransform = transform;
+	status_t err = mSurfaceTexture->setCurrentTransform(transform);
     return NO_ERROR;
 }
 
@@ -664,6 +688,7 @@ int SurfaceTextureClient::setBuffersTimestamp(int64_t timestamp)
     ALOGV("SurfaceTextureClient::setBuffersTimestamp");
     Mutex::Autolock lock(mMutex);
     mTimestamp = timestamp;
+	status_t err = mSurfaceTexture->setTimestamp(timestamp);
     return NO_ERROR;
 }
 
@@ -849,6 +874,35 @@ status_t SurfaceTextureClient::unlockAndPost()
     mPostedBuffer = mLockedBuffer;
     mLockedBuffer = 0;
     return err;
+}
+
+int SurfaceTextureClient::dispatchSetParameter(va_list args)
+{
+    int cmd     = va_arg(args,int);
+    int value   = va_arg(args,int);
+
+    return setParameter((uint32_t)cmd,(uint32_t)value);
+}
+
+int SurfaceTextureClient::dispatchGetParameter(va_list args)
+{
+    int cmd = va_arg(args,int);
+
+    return getParameter((uint32_t)cmd);
+}
+
+int SurfaceTextureClient::setParameter(uint32_t cmd,uint32_t value) 
+{
+    ALOGV("SurfaceTextureClient::setParameter %d,%d",cmd,value);
+    
+    return mSurfaceTexture->setParameter(cmd,value);
+}
+
+int SurfaceTextureClient::getParameter(uint32_t cmd) 
+{
+    ALOGV("SurfaceTextureClient::setParameter");
+    
+    return mSurfaceTexture->getParameter(cmd);
 }
 
 }; // namespace android

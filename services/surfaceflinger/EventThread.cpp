@@ -128,7 +128,7 @@ void EventThread::onVSyncReceived(int type, nsecs_t timestamp) {
 void EventThread::onHotplugReceived(int type, bool connected) {
     ALOGE_IF(type >= HWC_DISPLAY_TYPES_SUPPORTED,
             "received event for an invalid display (id=%d)", type);
-
+	
     Mutex::Autolock _l(mLock);
     if (type < HWC_DISPLAY_TYPES_SUPPORTED) {
         DisplayEventReceiver::Event event;
